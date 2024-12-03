@@ -1,49 +1,76 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
+	"math"
+	"os"
 	"strconv"
-	"unicode"
+	"strings"
+	"sync"
 )
 
-func main () {
-    a := 1000
+func sort(list []int, wg *sync.WaitGroup, ch chan []int) {
+	defer wg.Done()
+	for i := 0; i < len(list)-1; i++ {
+		for j := 0; j < len(list)-1; j++ {
+			if list[j] > list[j+1] {
+				temp := list[j]
+				list[j] = list[j+1]
+				list[j+1] = temp
+			}
+		}
+	}
 
-    ans := 0
-
-    for a > 0 {
-        var s string
-        fmt.Scan(&s)
-        var lnum string
-        for _, c := range s {
-            if(unicode.IsDigit(c)){
-                lnum += string(c) 
-                break
-            }
-        }
-        rs := reverseString(s)
-        for _, c := range rs {
-            if(unicode.IsDigit(c)){
-                lnum += string(c) 
-                break
-            }
-        }
-        num, err := strconv.Atoi(lnum)
-        if err != nil {
-            panic(err)
-        }
-        ans += num
-        a-- 
-    }
-    fmt.Println(ans)
+	ch <- list
 }
 
-func reverseString(s string) string {
-    runes := []rune(s)
+func main() {
+	readFile, err := os.Open("./input.txt")
+	if err != nil {
+		fmt.Println(err)
+	}
 
-    for i, j := 0, len(runes)-1; i< j; i, j = i + 1, j-1 {
-        runes[i], runes[j] = runes[j], runes[i]
-    }
+	fs := bufio.NewScanner(readFile)
+	fs.Split(bufio.ScanLines)
+	var lines []string
 
-    return string(runes)
+	for fs.Scan() {
+		lines = append(lines, fs.Text())
+	}
+
+	var list1 []int
+	var list2 []int
+
+	for _, line := range lines {
+		num1, _ := strconv.Atoi(strings.Split(line, "   ")[0])
+		num2, _ := strconv.Atoi(strings.Split(line, "   ")[1])
+
+		list1 = append(list1, num1)
+		list2 = append(list2, num2)
+	}
+
+	var wg sync.WaitGroup
+	ch := make(chan []int, 2)
+
+	wg.Add(2)
+	go sort(list1, &wg, ch)
+	go sort(list2, &wg, ch)
+
+	go func() {
+		wg.Wait()
+		close(ch)
+	}()
+
+	var sortedLists [][]int
+	for sortedList := range ch {
+		sortedLists = append(sortedLists, sortedList)
+	}
+
+	ans := 0
+	for i := range sortedLists[0] {
+		ans += int(math.Abs(float64(sortedLists[0][i] - sortedLists[1][i])))
+	}
+
+	fmt.Println(ans)
 }
